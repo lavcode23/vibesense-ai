@@ -1,74 +1,79 @@
 import streamlit as st
-import cv2
-from utils.face_utils import extract_face_features
-from utils.vibe_logic import infer_vibe
+from PIL import Image
+import numpy as np
+from deepface import DeepFace
 
+# -------------------------------
+# Page Config
+# -------------------------------
 st.set_page_config(
-    page_title="VibeSense AI",
+    page_title="VibeSense AI 🔮",
+    page_icon="😎",
     layout="centered"
 )
 
-st.title("🧠 VibeSense AI")
-st.caption("Real-time Human State Detection")
-
-run = st.checkbox("▶ Start Camera")
-
-FRAME_WINDOW = st.image([])
-
-if run:
-    cap = cv2.VideoCapture(0)
-
-    while run:
-        ret, frame = cap.read()
-        if not ret:
-            st.warning("Camera not accessible")
-            break
-
-        features = extract_face_features(frame)
-
-        if features:
-            vibe, confidence = infer_vibe(features)
-            st.markdown(f"### {vibe}")
-            st.progress(confidence)
-
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        FRAME_WINDOW.image(frame)
-
-    cap.release()
-import streamlit as st
-import cv2
-from utils.face_utils import extract_face_features
-from utils.vibe_logic import infer_vibe
-
-st.set_page_config(
-    page_title="VibeSense AI",
-    layout="centered"
+# -------------------------------
+# Title
+# -------------------------------
+st.markdown(
+    "<h1 style='text-align:center;'>VibeSense AI 🔮</h1>"
+    "<h4 style='text-align:center;'>Emotion-Powered Face Intelligence</h4>",
+    unsafe_allow_html=True
 )
 
-st.title("🧠 VibeSense AI")
-st.caption("Real-time Human State Detection")
+st.divider()
 
-run = st.checkbox("▶ Start Camera")
+# -------------------------------
+# Upload Image
+# -------------------------------
+uploaded_file = st.file_uploader(
+    "Upload a clear face image 👇",
+    type=["jpg", "jpeg", "png"]
+)
 
-FRAME_WINDOW = st.image([])
+if uploaded_file:
+    image = Image.open(uploaded_file)
+    st.image(image, caption="Uploaded Image", use_column_width=True)
 
-if run:
-    cap = cv2.VideoCapture(0)
+    with st.spinner("Analyzing your vibe... ✨"):
+        try:
+            result = DeepFace.analyze(
+                img_path=np.array(image),
+                actions=["emotion"],
+                enforce_detection=False
+            )
 
-    while run:
-        ret, frame = cap.read()
-        if not ret:
-            st.warning("Camera not accessible")
-            break
+            emotion = result[0]["dominant_emotion"]
 
-        features = extract_face_features(frame)
+            vibe_map = {
+                "happy": ("😄 Positive & Energetic", "Yellow"),
+                "sad": ("😢 Calm & Reflective", "Blue"),
+                "angry": ("🔥 Intense & Powerful", "Red"),
+                "surprise": ("🤯 Curious & Creative", "Purple"),
+                "neutral": ("😐 Balanced & Focused", "Gray"),
+                "fear": ("😨 Sensitive & Aware", "Teal"),
+                "disgust": ("🤢 Honest & Selective", "Green")
+            }
 
-        if features:
-            vibe, confidence = infer_vibe(features)
-            st.markdown(f"### {vibe}")
-            st.progress(confidence)
+            vibe_text, color = vibe_map.get(
+                emotion, ("✨ Unique Energy", "Black")
+            )
 
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        FRAME_WINDOW.image(frame)
+            st.success(f"**Detected Emotion:** {emotion.upper()}")
+            st.markdown(f"### {vibe_text}")
+            st.markdown(f"🎨 **Your Vibe Color:** `{color}`")
 
-    cap.release()
+            st.divider()
+
+            # Feedback
+            st.markdown("### Was this accurate?")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("👍 Yes"):
+                    st.success("Thanks for the feedback!")
+            with col2:
+                if st.button("👎 No"):
+                    st.info("We’ll improve!")
+
+        except Exception as e:
+            st.error("Face could not be analyzed. Try a clearer image.")
