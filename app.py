@@ -1,79 +1,84 @@
 import streamlit as st
-from PIL import Image
 import numpy as np
-from deepface import DeepFace
+from PIL import Image
+import cv2
+from fer import FER
 
-# -------------------------------
-# Page Config
-# -------------------------------
+# -----------------------------
+# App Config
+# -----------------------------
 st.set_page_config(
-    page_title="VibeSense AI 🔮",
-    page_icon="😎",
+    page_title="VibeSense AI",
+    page_icon="🎭",
     layout="centered"
 )
 
-# -------------------------------
-# Title
-# -------------------------------
-st.markdown(
-    "<h1 style='text-align:center;'>VibeSense AI 🔮</h1>"
-    "<h4 style='text-align:center;'>Emotion-Powered Face Intelligence</h4>",
-    unsafe_allow_html=True
-)
+st.title("🎭 VibeSense AI")
+st.subheader("Emotion-aware AI that reacts to your vibe")
 
-st.divider()
+# -----------------------------
+# Load Emotion Detector
+# -----------------------------
+@st.cache_resource
+def load_detector():
+    return FER(mtcnn=False)
 
-# -------------------------------
-# Upload Image
-# -------------------------------
+detector = load_detector()
+
+# -----------------------------
+# Image Upload
+# -----------------------------
 uploaded_file = st.file_uploader(
-    "Upload a clear face image 👇",
+    "Upload a face image",
     type=["jpg", "jpeg", "png"]
 )
 
 if uploaded_file:
-    image = Image.open(uploaded_file)
+    image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    with st.spinner("Analyzing your vibe... ✨"):
-        try:
-            result = DeepFace.analyze(
-                img_path=np.array(image),
-                actions=["emotion"],
-                enforce_detection=False
-            )
+    img_np = np.array(image)
+    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-            emotion = result[0]["dominant_emotion"]
+    with st.spinner("Analyzing vibes..."):
+        result = detector.detect_emotions(img_cv)
 
-            vibe_map = {
-                "happy": ("😄 Positive & Energetic", "Yellow"),
-                "sad": ("😢 Calm & Reflective", "Blue"),
-                "angry": ("🔥 Intense & Powerful", "Red"),
-                "surprise": ("🤯 Curious & Creative", "Purple"),
-                "neutral": ("😐 Balanced & Focused", "Gray"),
-                "fear": ("😨 Sensitive & Aware", "Teal"),
-                "disgust": ("🤢 Honest & Selective", "Green")
-            }
+    if not result:
+        st.error("No face detected 😕")
+    else:
+        emotions = result[0]["emotions"]
+        top_emotion = max(emotions, key=emotions.get)
+        confidence = emotions[top_emotion]
 
-            vibe_text, color = vibe_map.get(
-                emotion, ("✨ Unique Energy", "Black")
-            )
+        st.success(f"🎯 Detected Emotion: **{top_emotion.upper()}**")
+        st.progress(confidence)
 
-            st.success(f"**Detected Emotion:** {emotion.upper()}")
-            st.markdown(f"### {vibe_text}")
-            st.markdown(f"🎨 **Your Vibe Color:** `{color}`")
+        # -----------------------------
+        # Vibe Response
+        # -----------------------------
+        vibe_map = {
+            "happy": "😄 Keep shining!",
+            "sad": "💙 It's okay to feel this way.",
+            "angry": "🔥 Take a deep breath.",
+            "neutral": "😌 Calm and balanced.",
+            "surprise": "😲 Something caught your attention!"
+        }
 
-            st.divider()
+        st.info(vibe_map.get(top_emotion, "✨ Unique vibe detected!"))
 
-            # Feedback
-            st.markdown("### Was this accurate?")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("👍 Yes"):
-                    st.success("Thanks for the feedback!")
-            with col2:
-                if st.button("👎 No"):
-                    st.info("We’ll improve!")
+        # -----------------------------
+        # Feedback Loop
+        # -----------------------------
+        st.markdown("### Was this accurate?")
+        col1, col2 = st.columns(2)
 
-        except Exception as e:
-            st.error("Face could not be analyzed. Try a clearer image.")
+        with col1:
+            if st.button("👍 Yes"):
+                st.success("Thanks for the feedback!")
+
+        with col2:
+            if st.button("👎 No"):
+                st.warning("We'll improve!")
+
+else:
+    st.info("👆 Upload an image to begin")
