@@ -1,84 +1,82 @@
 import streamlit as st
 import numpy as np
-from PIL import Image
 import cv2
 from fer import FER
+from PIL import Image
 
-# -----------------------------
+# -----------------------
 # App Config
-# -----------------------------
+# -----------------------
 st.set_page_config(
     page_title="VibeSense AI",
-    page_icon="🎭",
+    page_icon="😎",
     layout="centered"
 )
 
-st.title("🎭 VibeSense AI")
-st.subheader("Emotion-aware AI that reacts to your vibe")
+st.title("😎 VibeSense AI")
+st.subheader("Emotion • Aura • Vibe Detector")
 
-# -----------------------------
+st.markdown("Upload a face image and let AI read your **vibes** ✨")
+
+# -----------------------
 # Load Emotion Detector
-# -----------------------------
+# -----------------------
 @st.cache_resource
 def load_detector():
     return FER(mtcnn=False)
 
 detector = load_detector()
 
-# -----------------------------
+# -----------------------
 # Image Upload
-# -----------------------------
+# -----------------------
 uploaded_file = st.file_uploader(
-    "Upload a face image",
+    "📷 Upload a face image",
     type=["jpg", "jpeg", "png"]
 )
 
 if uploaded_file:
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    img_array = np.array(image)
 
-    img_np = np.array(image)
-    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+    st.image(image, caption="Uploaded Image", use_container_width=True)
 
-    with st.spinner("Analyzing vibes..."):
-        result = detector.detect_emotions(img_cv)
+    with st.spinner("🔍 Reading your vibes..."):
+        emotions = detector.detect_emotions(img_array)
 
-    if not result:
-        st.error("No face detected 😕")
+    if not emotions:
+        st.error("😕 No face detected. Try another image.")
     else:
-        emotions = result[0]["emotions"]
-        top_emotion = max(emotions, key=emotions.get)
-        confidence = emotions[top_emotion]
+        emotion_scores = emotions[0]["emotions"]
+        top_emotion = max(emotion_scores, key=emotion_scores.get)
+        confidence = emotion_scores[top_emotion]
 
-        st.success(f"🎯 Detected Emotion: **{top_emotion.upper()}**")
-        st.progress(confidence)
-
-        # -----------------------------
-        # Vibe Response
-        # -----------------------------
         vibe_map = {
-            "happy": "😄 Keep shining!",
-            "sad": "💙 It's okay to feel this way.",
-            "angry": "🔥 Take a deep breath.",
-            "neutral": "😌 Calm and balanced.",
-            "surprise": "😲 Something caught your attention!"
+            "happy": "✨ Positive Aura",
+            "sad": "🌧 Soft & Emotional",
+            "angry": "🔥 Intense Energy",
+            "fear": "⚡ Alert & Aware",
+            "surprise": "🎉 Curious Vibes",
+            "neutral": "🧘 Calm Presence",
+            "disgust": "😬 Reserved Mood"
         }
 
-        st.info(vibe_map.get(top_emotion, "✨ Unique vibe detected!"))
+        st.success(f"### Dominant Emotion: **{top_emotion.upper()}**")
+        st.progress(min(confidence, 1.0))
 
-        # -----------------------------
-        # Feedback Loop
-        # -----------------------------
-        st.markdown("### Was this accurate?")
+        st.markdown(f"## 🔮 Vibe Reading: {vibe_map.get(top_emotion, 'Unknown')}")
+
+        st.markdown("---")
+        st.markdown("### 📊 Emotion Breakdown")
+        st.bar_chart(emotion_scores)
+
+        st.markdown("---")
+        st.markdown("### 👍 Did this feel accurate?")
         col1, col2 = st.columns(2)
-
         with col1:
-            if st.button("👍 Yes"):
-                st.success("Thanks for the feedback!")
-
+            st.button("👍 Yes!")
         with col2:
-            if st.button("👎 No"):
-                st.warning("We'll improve!")
+            st.button("👎 Nope")
 
-else:
-    st.info("👆 Upload an image to begin")
+st.markdown("---")
+st.caption("Built with ❤️ by Lavisha | Streamlit + FER")
